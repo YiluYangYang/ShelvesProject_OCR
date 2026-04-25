@@ -179,6 +179,69 @@ def human_scroll(driver: webdriver.Chrome, total_px: int, duration: float):
 
 
 # ════════════════════════════════════════════════════════════
+# 內容區域過濾（排除左右側欄）
+# ════════════════════════════════════════════════════════════
+
+# 各網站主內容的 CSS selector，優先使用第一個找得到的
+CONTENT_SELECTORS: dict[str, list[str]] = {
+    "facebook.com":  ['[role="main"]', '#content_container'],
+    "instagram.com": ['main[role="main"]', 'article'],
+    "threads.net":   ['[role="feed"]', 'main'],
+    "reddit.com":    ['shreddit-feed', '#main-content', '.main-container'],
+    "yahoo.com":     ['#Col1-0-ContentCanvas', 'article'],
+    "google.com":    ['main', 'c-wiz[data-p]'],
+}
+
+# 內容欄左右各多保留的像素（避免邊緣文字被截掉）
+CONTENT_PADDING_PX = 10
+
+
+def get_content_x_range(
+    driver: webdriver.Chrome,
+    current_url: str,
+    frame_w: int,
+    scale: float,
+) -> tuple[int, int]:
+    """
+    查詢當前頁面主內容欄的橫向範圍，回傳 (x_min, x_max) in scaled-image 像素空間。
+    找不到時回傳 (0, frame_w) 代表全寬。
+    """
+    domain = current_url.split("//")[-1].split("/")[0].lstrip("www.")
+    selectors = next(
+        (v for k, v in CONTENT_SELECTORS.items() if k in domain), None
+    )
+    if selectors is None:
+        return 0, frame_w
+
+    for selector in selectors:
+        try:
+            el = driver.find_element("css selector", selector)
+            rect = driver.execute_script(
+                "const r = arguments[0].getBoundingClientRect();"
+                "return {x: r.x, w: r.width};",
+                el,
+            )
+            if rect["w"] < 50:
+                continue
+            inner_w = driver.execute_script("return window.innerWidth;")
+            ratio   = frame_w / (inner_w * scale)
+            x_min   = max(0, int((rect["x"] - CONTENT_PADDING_PX) * ratio * scale))
+            x_max   = min(frame_w, int((rect["x"] + rect["w"] + CONTENT_PADDING_PX) * ratio * scale))
+            if x_max - x_min > 50:
+                logger.info(f"內容區域 [{selector}]: x={x_min}~{x_max}/{frame_w}")
+                return x_min, x_max
+        except Exception:
+            continue
+
+    return 0, frame_w
+
+
+def filter_boxes_by_x(boxes: list, x_min: int, x_max: int) -> list:
+    """只保留中心點落在 [x_min, x_max] 內的偵測框。"""
+    return [b for b in boxes if x_min <= (b[0] + b[1]) / 2 <= x_max]
+
+
+# ════════════════════════════════════════════════════════════
 # OCR
 # ════════════════════════════════════════════════════════════
 
@@ -356,7 +419,15 @@ def browse_tab(driver: webdriver.Chrome, reader: easyocr.Reader,
         scaled = scale_image(frame, frame_scale)
         sw, sh = scaled.shape[1], scaled.shape[0]
         detected_boxes = detect_boxes(reader, scaled)
-        logger.info(f"偵測框數: {len(detected_boxes)}")
+
+        # 過濾掉左右側欄的偵測框，只保留主內容區域
+        try:
+            x_min, x_max = get_content_x_range(driver, url, sw, frame_scale)
+            detected_boxes = filter_boxes_by_x(detected_boxes, x_min, x_max)
+        except Exception as e:
+            logger.debug(f"內容區域過濾失敗，使用全寬: {e}")
+
+        logger.info(f"偵測框數（過濾後）: {len(detected_boxes)}")
 
         if len(detected_boxes) <= 3:
             p.show_text_panel()

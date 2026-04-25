@@ -22,6 +22,13 @@ try:
 except ImportError:
     _PYNPUT_AVAILABLE = False
 
+# psutil CPU 監控（選用）
+try:
+    import psutil
+    _PSUTIL_AVAILABLE = True
+except ImportError:
+    _PSUTIL_AVAILABLE = False
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -47,6 +54,29 @@ _overlay: "TransparentOverlay | None" = None
 _text_panel: "TextPanel | None" = None
 _quit_flag: bool = False
 _last_panel_refresh: float = 0.0
+_cpu_percent: float = 0.0   # CPU 使用率（背景執行緒更新）
+
+
+def _cpu_monitor_loop() -> None:
+    """背景執行緒：每 2 秒更新一次 CPU 使用率。"""
+    global _cpu_percent
+    if not _PSUTIL_AVAILABLE:
+        return
+    proc = psutil.Process()
+    while not _quit_flag:
+        try:
+            _cpu_percent = proc.cpu_percent(interval=2.0)
+        except Exception:
+            pass
+
+
+def start_cpu_monitor() -> None:
+    """啟動 CPU 監控背景執行緒。"""
+    if not _PSUTIL_AVAILABLE:
+        logger.warning("psutil 未安裝，CPU 監控停用。可執行：uv add psutil")
+        return
+    t = threading.Thread(target=_cpu_monitor_loop, daemon=True)
+    t.start()
 
 
 def _set_quit() -> None:
@@ -258,9 +288,24 @@ def _render_text_panel_pil(width: int, height: int) -> Image.Image:
     draw = ImageDraw.Draw(img)
     font = _load_cjk_font(TEXT_PANEL_FONT_SIZE)
 
+    # ── 標題列 ──────────────────────────────────────────────
     draw.rectangle([(0, 0), (width, PANEL_HEADER_H)], fill=(0, 50, 0))
     draw.text((PANEL_PADDING, PANEL_HEADER_FONT_H), "OCR 偵測記錄",
               fill=(160, 255, 160), font=font)
+
+    # CPU 使用率顯示在標題列右側
+    if _PSUTIL_AVAILABLE:
+        cpu_str = f"CPU {_cpu_percent:.0f}%"
+        cpu_bbox = draw.textbbox((0, 0), cpu_str, font=font)
+        cpu_w = cpu_bbox[2] - cpu_bbox[0]
+        cpu_color = (255, 100, 100) if _cpu_percent > 70 else (160, 255, 160)
+        draw.text(
+            (width - cpu_w - CLOSE_BTN_SIZE - PANEL_PADDING * 2, PANEL_HEADER_FONT_H),
+            cpu_str,
+            fill=cpu_color,
+            font=font,
+        )
+
     draw.line([(0, PANEL_HEADER_H), (width, PANEL_HEADER_H)],
               fill=(0, 100, 0), width=2)
 
@@ -327,5 +372,6 @@ def init_panel(screen_w: int, screen_h: int,
     _overlay    = overlay
     _text_panel = text_panel
 
+    start_cpu_monitor()
     show_text_panel()
     return overlay, text_panel
