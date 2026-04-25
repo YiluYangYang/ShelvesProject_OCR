@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 CHROME_APP             = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 CHROME_DEBUG_PORT      = 9222
-CHROME_DEBUG_USER_DATA = "/Users/yilu/selenium-chrome"
+CHROME_DEBUG_USER_DATA = "/Users/<YOUR_USERNAME>/selenium-chrome" 
 CHROME_PROFILE_DIR     = "Default"
 
 

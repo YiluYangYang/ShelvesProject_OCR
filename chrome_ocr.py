@@ -75,7 +75,7 @@ p.PANEL_THROTTLE       = 0.10
 # Chrome Remote Debugging（覆寫 browser.py 預設值）
 b.CHROME_APP             = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 b.CHROME_DEBUG_PORT      = 9222
-b.CHROME_DEBUG_USER_DATA = "/Users/yilu/selenium-chrome"
+b.CHROME_DEBUG_USER_DATA = "/Users/<YOUR_USERNAME>/selenium-chrome"
 b.CHROME_PROFILE_DIR     = "Default"
 
 
