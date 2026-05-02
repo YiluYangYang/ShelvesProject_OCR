@@ -147,6 +147,56 @@ rm -f ~/selenium-chrome/Default/LOCK
 uv run chrome_ocr.py
 ```
 
+### 新增需要登入的社群網站
+
+新增不需登入的網站（如 Yahoo News）只需在 `chrome_ocr.py` 的 `URLS` 加一行即可。
+若新網站**需要登入**（如 X.com、Threads），請依以下步驟操作：
+
+**步驟 1：單獨啟動 selenium-chrome 的 Chrome**
+
+```bash
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 \
+  --user-data-dir=/Users/<YOUR_USERNAME>/selenium-chrome \
+  --profile-directory=Default \
+  --no-first-run
+```
+
+**步驟 2：在彈出的 Chrome 視窗手動登入目標網站**
+
+前往新網站（例如 `https://x.com`），正常操作登入流程。完成後登入狀態會自動儲存到 `~/selenium-chrome/Default`，**關閉 Chrome**。
+
+**步驟 3：在 `chrome_ocr.py` 的 `URLS` 加入新網址**
+
+```python
+URLS = [
+    "https://www.facebook.com/",
+    "https://www.instagram.com/",
+    "https://tw.news.yahoo.com/archive",
+    "https://www.reddit.com/",
+    "https://x.com/",   # 新增
+]
+```
+
+**步驟 4（建議）：在 `browser.py` 加入內容區域 selector**
+
+用 Chrome DevTools（F12）點選主內容欄位，右鍵 → Copy selector，填入 `CONTENT_SELECTORS`：
+
+```python
+CONTENT_SELECTORS: dict[str, list[str]] = {
+    ...
+    "x.com": ['[data-testid="primaryColumn"]', 'main[role="main"]'],
+}
+```
+
+**步驟 5：驗證登入狀態**
+
+```bash
+uv run chrome_login_test.py
+```
+
+> 日後重新登入（例如被網站登出）：重複步驟 1–2 即可，不需修改程式碼。
+
 ---
 
 ## 4. 可調整參數說明
