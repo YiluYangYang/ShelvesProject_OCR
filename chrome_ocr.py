@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 URLS = [
     "https://www.facebook.com/",
     "https://www.instagram.com/",
+    "https://x.com/home",
     "https://tw.news.yahoo.com/archive",
     "https://www.reddit.com/",
 ]

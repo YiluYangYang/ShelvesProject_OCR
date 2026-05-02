@@ -190,6 +190,7 @@ CONTENT_SELECTORS: dict[str, list[str]] = {
     "reddit.com":    ['shreddit-feed', '#main-content', '.main-container'],
     "yahoo.com":     ['#Col1-0-ContentCanvas', 'article'],
     "google.com":    ['main', 'c-wiz[data-p]'],
+    "x.com": ['[data-testid="primaryColumn"]', 'main[role="main"]'],
 }
 
 # 內容欄左右各多保留的像素（避免邊緣文字被截掉）
